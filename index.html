@@ -4,6 +4,31 @@
     <meta charset="UTF-8" />
     <script>
       (function() {
+        // 1. Filter out console.error and console.warn for Vite WebSocket connection notices
+        var origError = console.error;
+        var origWarn = console.warn;
+        function isViteWsMsg(args) {
+          try {
+            var s = Array.prototype.slice.call(args).map(function(a) {
+              return (a && (a.message || a.stack || String(a))) || '';
+            }).join(' ');
+            return s.indexOf('failed to connect to websocket') !== -1 ||
+                   s.indexOf('WebSocket closed without opened') !== -1 ||
+                   s.indexOf('[vite] failed to connect') !== -1;
+          } catch(e) {
+            return false;
+          }
+        }
+        console.error = function() {
+          if (isViteWsMsg(arguments)) return;
+          return origError.apply(console, arguments);
+        };
+        console.warn = function() {
+          if (isViteWsMsg(arguments)) return;
+          return origWarn.apply(console, arguments);
+        };
+
+        // 2. Intercept unhandledrejection and window error events
         function isWsError(err) {
           if (!err) return false;
           var s = String((err && (err.message || err.reason || err.stack)) || err || '');
@@ -21,6 +46,43 @@
             e.stopImmediatePropagation();
           }
         }, true);
+
+        // 3. Neutralize Vite HMR WebSocket in browser preview environment
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          var NativeWebSocket = window.WebSocket;
+          window.WebSocket = function(url, protocols) {
+            var isHmr = (protocols === 'vite-hmr') ||
+                        (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) ||
+                        (typeof url === 'string' && (url.indexOf('vite-hmr') !== -1 || url.indexOf('/@vite') !== -1));
+            if (isHmr) {
+              return {
+                readyState: 1,
+                protocol: 'vite-hmr',
+                addEventListener: function(type, handler) {
+                  if (type === 'open') {
+                    setTimeout(function() {
+                      try { handler({ type: 'open' }); } catch(e) {}
+                    }, 0);
+                  }
+                },
+                removeEventListener: function() {},
+                dispatchEvent: function() { return true; },
+                send: function() {},
+                close: function() {},
+                onopen: null,
+                onmessage: null,
+                onerror: null,
+                onclose: null
+              };
+            }
+            return new NativeWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = NativeWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
