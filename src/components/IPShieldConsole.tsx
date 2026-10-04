@@ -22,7 +22,10 @@ import {
   Zap,
   Clock,
   Terminal,
-  ChevronDown
+  ChevronDown,
+  FileSpreadsheet,
+  FileCode,
+  Download
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { SecurityEvent, ApiActivityLog } from '../types/database';
@@ -310,6 +313,74 @@ export const IPShieldConsole: React.FC<IPShieldConsoleProps> = ({
       await fetch('/api/security/api-activity/clear', { method: 'DELETE' });
     } catch {}
     setApiLogs([]);
+  };
+
+  // Export filtered API activity logs to CSV
+  const handleExportCsv = () => {
+    if (filteredApiLogs.length === 0) return;
+
+    const headers = [
+      'Log ID',
+      'Timestamp (ISO)',
+      'Method',
+      'Endpoint Path',
+      'Client IP',
+      'Origin / Region',
+      'HTTP Status Code',
+      'Security Verdict',
+      'Response Time (ms)',
+      'Threat Classification'
+    ];
+
+    const rows = filteredApiLogs.map(log => [
+      log.id,
+      log.timestamp,
+      log.method,
+      `"${log.path.replace(/"/g, '""')}"`,
+      log.clientIp,
+      log.country,
+      log.statusCode,
+      log.status,
+      log.responseTimeMs,
+      `"${(log.threatType || 'NONE').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
+    link.href = url;
+    link.setAttribute('download', `api-activity-${activityFilter}-${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export filtered API activity logs to JSON
+  const handleExportJson = () => {
+    if (filteredApiLogs.length === 0) return;
+
+    const exportPayload = {
+      exportedAt: new Date().toISOString(),
+      filterApplied: activityFilter,
+      searchQuery: searchQuery || null,
+      totalExported: filteredApiLogs.length,
+      logs: filteredApiLogs
+    };
+
+    const jsonString = JSON.stringify(exportPayload, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
+    link.href = url;
+    link.setAttribute('download', `api-activity-${activityFilter}-${dateStr}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Simulate Attack
@@ -658,8 +729,29 @@ export const IPShieldConsole: React.FC<IPShieldConsoleProps> = ({
                   />
                 </div>
 
-                {/* Actions: Simulate Live Traffic & Clear */}
+                {/* Actions: Export, Simulate Live Traffic & Clear */}
                 <div className="flex items-center gap-2">
+                  {/* Export Filtered API Activity */}
+                  <button
+                    onClick={handleExportCsv}
+                    disabled={filteredApiLogs.length === 0}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-40"
+                    title={currentLang === 'ku' ? `دابەزاندنی ${filteredApiLogs.length} تۆماری فلتەرکراو بە CSV` : `Export ${filteredApiLogs.length} filtered records as CSV`}
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>CSV</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportJson}
+                    disabled={filteredApiLogs.length === 0}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-40"
+                    title={currentLang === 'ku' ? `دابەزاندنی ${filteredApiLogs.length} تۆماری فلتەرکراو بە JSON` : `Export ${filteredApiLogs.length} filtered records as JSON`}
+                  >
+                    <FileCode className="w-3.5 h-3.5 text-amber-400" />
+                    <span>JSON</span>
+                  </button>
+
                   <button
                     onClick={handleSimulateLiveTraffic}
                     disabled={isSimulatingTraffic}

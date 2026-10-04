@@ -1,3 +1,4 @@
+process.env.DISABLE_HMR = 'true';
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -11,9 +12,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
+
+// Health Check for Render & Cloud Deployment
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
 
 // In-memory IP Security & Shield Store
 interface SecurityEvent {
@@ -706,7 +712,11 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true, allowedHosts: true },
+      server: { 
+        middlewareMode: true, 
+        allowedHosts: true,
+        hmr: false
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

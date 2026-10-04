@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: magic-nocode-database
+    runtime: node
+    plan: free
+    region: frankfurt # Low latency for Middle East / Europe / Kurdistan
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
