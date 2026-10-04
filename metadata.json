@@ -1,0 +1,6 @@
+{
+  "name": "Magic - No-Code Database & AI Agent Platform",
+  "description": "جادوو (Jadoo) / Wizard - باشترین بنکەی دروستکردنی ماڵپەڕ و داتای بێکۆد لەگەڵ بریکاری ژیریی دەستکرد AI Agent، گانت چارت، ERP، CRM و پاراستنی ئاسایشی پێشکەوتوو.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
